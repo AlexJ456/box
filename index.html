@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Box Breathing App</title>
+    <!-- PWA manifest -->
+    <link rel="manifest" href="manifest.json" />
+    <!-- iOS Support -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <link rel="apple-touch-icon" href="icon-192.png" />
+    <!-- Custom styling -->
+    <link rel="stylesheet" href="style.css" />
+    <!-- PyScript resources -->
+    <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
+    <script defer src="https://pyscript.net/latest/pyscript.js"></script>
+  </head>
+  <body>
+    <div id="app">
+      <div id="totalTime" class="info">
+        Total Time: <span id="timeDisplay">00:00</span>
+      </div>
+      <h1 class="title">Box Breathing</h1>
+      <div id="controls">
+        <label>
+          <input type="checkbox" id="soundToggle" />
+          Sound
+        </label>
+        <label>
+          Time limit (minutes):
+          <input
+            type="number"
+            id="timeLimit"
+            placeholder="Optional"
+            pattern="[0-9]*"
+          />
+        </label>
+      </div>
+      <div id="instruction" class="instruction">Press start to begin</div>
+      <div id="countdown" class="countdown">4</div>
+      <button id="startButton" class="control-button">Start</button>
+      <button id="resetButton" class="control-button">Reset</button>
+    </div>
+    <!-- PyScript file -->
+    <py-script src="app.py"></py-script>
+    <!-- Register the service worker -->
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", function () {
+          navigator.serviceWorker
+            .register("service-worker.js")
+            .then(function (registration) {
+              console.log(
+                "ServiceWorker registration successful with scope: ",
+                registration.scope
+              );
+            })
+            .catch(function (err) {
+              console.log("ServiceWorker registration failed: ", err);
+            });
+        });
+      }
+    </script>
+  </body>
+</html>
