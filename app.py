@@ -1,61 +1,60 @@
 import asyncio
 from js import document, console, window
 
-# Global app state variables
+# Global state variables
 is_playing = False
 total_seconds = 0
-
-# Define the breathing phases
 steps = ["Inhale", "Hold", "Exhale", "Wait"]
 
-async def start_breathing(ev):
-    global is_playing, total_seconds
-    if not is_playing:
-        return  # safeguard in case this is called unexpectedly
-    total_seconds = 0
-    # Retrieve optional time limit input (in minutes)
+async def breathing_cycle():
+    global total_seconds, is_playing
+    # Get optional time limit in seconds (if provided)
     time_limit_input = document.getElementById("timeLimit").value
     try:
-        time_limit_minutes = int(time_limit_input) if time_limit_input != "" else 0
+        time_limit_sec = int(time_limit_input) * 60 if time_limit_input != "" else 0
     except Exception:
-        time_limit_minutes = 0
-    time_limit_seconds = time_limit_minutes * 60
+        time_limit_sec = 0
+
     step_index = 0
 
     while is_playing:
-        # Update the phase instruction
-        instruction = steps[step_index]
-        document.getElementById("instruction").innerHTML = instruction
-        console.log(f"Step: {instruction}")
-        countdown = 4  # each phase lasts 4 seconds
+        # Set the current instruction (breathing phase)
+        document.getElementById("instruction").textContent = steps[step_index]
+        console.log(f"Phase: {steps[step_index]}")
+
+        # Perform a 4-second countdown for the phase
+        countdown = 4
         while countdown > 0 and is_playing:
-            document.getElementById("countdown").innerHTML = str(countdown)
+            document.getElementById("countdown").textContent = str(countdown)
             await asyncio.sleep(1)
-            countdown -= 1
             total_seconds += 1
+            # Update the total time display
             minutes = total_seconds // 60
             seconds = total_seconds % 60
-            document.getElementById("timeDisplay").innerHTML = f"{minutes:02d}:{seconds:02d}"
-        # Play tone if sound is enabled
-        sound_toggle = document.getElementById("soundToggle")
-        if sound_toggle.checked:
+            document.getElementById("timeDisplay").textContent = f"{minutes:02d}:{seconds:02d}"
+            countdown -= 1
+
+        # Play a brief tone if sound is enabled
+        if document.getElementById("soundToggle").checked:
             play_tone()
-        # Move to the next phase
-        step_index = (step_index + 1) % len(steps)
-        # Check optional time limit and stop if reached
-        if time_limit_seconds and total_seconds >= time_limit_seconds:
-            is_playing = False
-            document.getElementById("instruction").innerHTML = "Complete!"
-            document.getElementById("startButton").innerHTML = "Start"
+
+        # Check if a time limit was set and if it has been reached
+        if time_limit_sec and total_seconds >= time_limit_sec:
             break
 
-async def stop_breathing(ev):
-    global is_playing
+        # Rotate to the next breathing phase
+        step_index = (step_index + 1) % len(steps)
+
+    # End of session – update interface accordingly
+    if time_limit_sec and total_seconds >= time_limit_sec:
+        document.getElementById("instruction").textContent = "Complete!"
+    else:
+        document.getElementById("instruction").textContent = "Paused"
+    document.getElementById("startButton").textContent = "Start"
     is_playing = False
-    document.getElementById("instruction").innerHTML = "Paused"
 
 def play_tone():
-    # Use the Web Audio API to play a short tone.
+    # Use the Web Audio API to play a 100ms beep at A4 (440Hz)
     audio_context = None
     if hasattr(window, "AudioContext"):
         audio_context = window.AudioContext.new()
@@ -64,33 +63,37 @@ def play_tone():
     if audio_context:
         oscillator = audio_context.createOscillator()
         oscillator.type = "sine"
-        oscillator.frequency.value = 440  # A4 frequency
+        oscillator.frequency.value = 440  # 440Hz: A4
         oscillator.connect(audio_context.destination)
         oscillator.start()
-        # Stop oscillator after 0.1 seconds
         def stop_osc():
             oscillator.stop()
         window.setTimeout(stop_osc, 100)
+
+def toggle_play(ev):
+    global is_playing, total_seconds
+    if not is_playing:
+        # Start the session: reset time and update button label
+        is_playing = True
+        total_seconds = 0
+        document.getElementById("startButton").textContent = "Pause"
+        document.getElementById("instruction").textContent = "Starting..."
+        asyncio.ensure_future(breathing_cycle())
+    else:
+        # Pause the session
+        is_playing = False
+        document.getElementById("startButton").textContent = "Start"
+        document.getElementById("instruction").textContent = "Paused"
 
 def reset_app(ev):
     global is_playing, total_seconds
     is_playing = False
     total_seconds = 0
-    document.getElementById("instruction").innerHTML = "Press start to begin"
-    document.getElementById("countdown").innerHTML = "4"
-    document.getElementById("timeDisplay").innerHTML = "00:00"
-    document.getElementById("startButton").innerHTML = "Start"
+    document.getElementById("instruction").textContent = "Press Start to Begin"
+    document.getElementById("countdown").textContent = "4"
+    document.getElementById("timeDisplay").textContent = "00:00"
+    document.getElementById("startButton").textContent = "Start"
 
-def toggle_play(ev):
-    global is_playing
-    if not is_playing:
-        is_playing = True  # Set state immediately to avoid duplicate triggers
-        document.getElementById("startButton").innerHTML = "Pause"
-        asyncio.ensure_future(start_breathing(ev))
-    else:
-        document.getElementById("startButton").innerHTML = "Start"
-        asyncio.ensure_future(stop_breathing(ev))
-
-# Bind button events using our dedicated toggle functions.
+# Bind button events
 document.getElementById("startButton").addEventListener("click", toggle_play)
 document.getElementById("resetButton").addEventListener("click", reset_app)
