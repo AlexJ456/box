@@ -1,34 +1,34 @@
 import asyncio
 from js import document, console, window
 
-# Global variables for app state
+# Global app state variables
 is_playing = False
 total_seconds = 0
-# Define the phases
+
+# Define the breathing phases
 steps = ["Inhale", "Hold", "Exhale", "Wait"]
 
 async def start_breathing(ev):
     global is_playing, total_seconds
-    if is_playing:
-        return
-    is_playing = True
+    if not is_playing:
+        return  # safeguard in case this is called unexpectedly
     total_seconds = 0
     # Retrieve optional time limit input (in minutes)
     time_limit_input = document.getElementById("timeLimit").value
     try:
         time_limit_minutes = int(time_limit_input) if time_limit_input != "" else 0
-    except Exception as e:
+    except Exception:
         time_limit_minutes = 0
     time_limit_seconds = time_limit_minutes * 60
     step_index = 0
 
     while is_playing:
-        # Update phase instruction
+        # Update the phase instruction
         instruction = steps[step_index]
         document.getElementById("instruction").innerHTML = instruction
         console.log(f"Step: {instruction}")
-        countdown = 4  # 4-second interval for each phase
-        while countdown > 0:
+        countdown = 4  # each phase lasts 4 seconds
+        while countdown > 0 and is_playing:
             document.getElementById("countdown").innerHTML = str(countdown)
             await asyncio.sleep(1)
             countdown -= 1
@@ -36,13 +36,13 @@ async def start_breathing(ev):
             minutes = total_seconds // 60
             seconds = total_seconds % 60
             document.getElementById("timeDisplay").innerHTML = f"{minutes:02d}:{seconds:02d}"
-        # Play a tone if sound is enabled
+        # Play tone if sound is enabled
         sound_toggle = document.getElementById("soundToggle")
         if sound_toggle.checked:
             play_tone()
-        # Move to next phase
+        # Move to the next phase
         step_index = (step_index + 1) % len(steps)
-        # Check optional time limit and complete if reached
+        # Check optional time limit and stop if reached
         if time_limit_seconds and total_seconds >= time_limit_seconds:
             is_playing = False
             document.getElementById("instruction").innerHTML = "Complete!"
@@ -55,7 +55,7 @@ async def stop_breathing(ev):
     document.getElementById("instruction").innerHTML = "Paused"
 
 def play_tone():
-    # Use the Web Audio API via JS to play a short tone.
+    # Use the Web Audio API to play a short tone.
     audio_context = None
     if hasattr(window, "AudioContext"):
         audio_context = window.AudioContext.new()
@@ -81,11 +81,16 @@ def reset_app(ev):
     document.getElementById("timeDisplay").innerHTML = "00:00"
     document.getElementById("startButton").innerHTML = "Start"
 
-# Bind button events
-document.getElementById("startButton").addEventListener(
-    "click",
-    lambda ev: asyncio.ensure_future(start_breathing(ev))
-    if document.getElementById("startButton").innerHTML == "Start"
-    else asyncio.ensure_future(stop_breathing(ev))
-)
+def toggle_play(ev):
+    global is_playing
+    if not is_playing:
+        is_playing = True  # Set state immediately to avoid duplicate triggers
+        document.getElementById("startButton").innerHTML = "Pause"
+        asyncio.ensure_future(start_breathing(ev))
+    else:
+        document.getElementById("startButton").innerHTML = "Start"
+        asyncio.ensure_future(stop_breathing(ev))
+
+# Bind button events using our dedicated toggle functions.
+document.getElementById("startButton").addEventListener("click", toggle_play)
 document.getElementById("resetButton").addEventListener("click", reset_app)
